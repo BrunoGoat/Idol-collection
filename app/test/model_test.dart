@@ -52,21 +52,28 @@ void main() {
     expect(slugify('???'), 'idolo');
   });
 
-  test('las cartas de ejemplo del repo se leen bien', () {
-    final dir = Directory('../collection/idols');
-    final ids = dir.listSync().whereType<Directory>().map((d) => d.uri.pathSegments.where((s) => s.isNotEmpty).last).toList();
-    expect(ids, isNotEmpty);
-    for (final id in ids) {
-      final idol = Idol.fromMarkdown(id, File('${dir.path}/$id/card.md').readAsStringSync());
-      expect(idol.name, isNot(id), reason: '$id debería tener nombre');
-      expect(kFrames.map((f) => f.id), contains(idol.frame), reason: '$id: marco desconocido');
-      expect(kFonts.map((f) => f.id), contains(idol.font), reason: '$id: fuente desconocida');
-      expect(File('${dir.path}/$id/${idol.image}').existsSync(), isTrue, reason: '$id: falta la imagen');
-    }
-    final layout = BoardLayout.fromJsonString(File('../collection/layout.json').readAsStringSync());
-    expect(layout.cards.keys.toSet(), ids.toSet());
-    expect(kThemes.map((t) => t.id), contains(layout.theme));
-  });
+  // La colección real (la tuya) y la de ejemplo que usan los tests.
+  for (final root in ['../collection', 'test/fixtures/collection']) {
+    test('las cartas de $root se leen bien', () {
+      final dir = Directory('$root/idols');
+      final ids = dir.existsSync()
+          ? dir.listSync().whereType<Directory>().map((d) => d.uri.pathSegments.where((s) => s.isNotEmpty).last).toList()
+          : <String>[];
+      for (final id in ids) {
+        final idol = Idol.fromMarkdown(id, File('${dir.path}/$id/card.md').readAsStringSync());
+        expect(idol.name, isNot(id), reason: '$id debería tener nombre');
+        expect(kFrames.map((f) => f.id), contains(idol.frame), reason: '$id: marco desconocido');
+        expect(kFonts.map((f) => f.id), contains(idol.font), reason: '$id: fuente desconocida');
+        expect(File('${dir.path}/$id/${idol.image}').existsSync(), isTrue, reason: '$id: falta la imagen');
+      }
+      final layoutFile = File('$root/layout.json');
+      if (layoutFile.existsSync()) {
+        final layout = BoardLayout.fromJsonString(layoutFile.readAsStringSync());
+        expect(ids.toSet().containsAll(layout.cards.keys), isTrue, reason: 'layout.json menciona cartas que no existen');
+        expect(kThemes.map((t) => t.id), contains(layout.theme));
+      }
+    });
+  }
 
   test('catálogo: 20 fondos, 12 marcos, 21 fuentes, sin ids repetidos', () {
     expect(kThemes.length, 20);

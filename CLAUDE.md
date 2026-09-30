@@ -12,5 +12,6 @@
 - Los cambios solo en `collection/` no disparan el build del APK.
 - La app lee la rama configurada en sus ajustes (por defecto `main`): los
   cambios de datos tienen que llegar a esa rama para verse en el teléfono.
-- Antes de subir código: `cd app && flutter analyze && flutter test`. Para
+- Antes de subir código: `cd app && flutter analyze && flutter test`. Los tests usan
+  la colección de ejemplo de `app/test/fixtures/`, no la real. Para
   revisar el diseño: `SCREENSHOTS=1 flutter test test/screenshots_test.dart`.

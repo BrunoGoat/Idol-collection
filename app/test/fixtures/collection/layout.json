@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "board": {
+    "theme": "nebulosa"
+  },
+  "cards": {
+    "marie-curie": {
+      "x": -420,
+      "y": -160,
+      "scale": 1.35,
+      "rotation": -0.05,
+      "z": 8
+    },
+    "nikola-tesla": {
+      "x": -760,
+      "y": 120,
+      "scale": 1.0,
+      "rotation": 0.06,
+      "z": 3
+    },
+    "ada-lovelace": {
+      "x": -420,
+      "y": 330,
+      "scale": 0.95,
+      "rotation": -0.03,
+      "z": 4
+    },
+    "galileo-galilei": {
+      "x": -780,
+      "y": -330,
+      "scale": 0.9,
+      "rotation": 0.08,
+      "z": 2
+    },
+    "leonardo-da-vinci": {
+      "x": 80,
+      "y": -300,
+      "scale": 1.15,
+      "rotation": 0.04,
+      "z": 5
+    },
+    "ludwig-van-beethoven": {
+      "x": 420,
+      "y": -140,
+      "scale": 1.1,
+      "rotation": -0.07,
+      "z": 6
+    },
+    "amelia-earhart": {
+      "x": 120,
+      "y": 230,
+      "scale": 1.0,
+      "rotation": 0.05,
+      "z": 7
+    },
+    "jesse-owens": {
+      "x": 480,
+      "y": 300,
+      "scale": 1.2,
+      "rotation": -0.04,
+      "z": 9
+    }
+  }
+}

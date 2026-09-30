@@ -72,7 +72,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await tester.runAsync(() async {
       final tmp = await Directory.systemTemp.createTemp('shots');
-      final gh = FakeGitHub()..seedFromDisk('../collection', 'collection');
+      final gh = FakeGitHub()..seedFromDisk('test/fixtures/collection', 'collection');
       settings = AppSettings();
       await settings.load();
       settings

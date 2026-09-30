@@ -22,7 +22,7 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     tmp = await Directory.systemTemp.createTemp('idols');
-    gh = FakeGitHub()..seedFromDisk('../collection', 'collection');
+    gh = FakeGitHub()..seedFromDisk('test/fixtures/collection', 'collection');
     settings = AppSettings();
     await settings.load();
     settings
@@ -102,7 +102,7 @@ void main() {
   test('agregar, editar y quitar un ídolo desde la app', () async {
     final c = await open();
     await c.sync();
-    final jpg = File('../collection/idols/jesse-owens/image.jpg').readAsBytesSync();
+    final jpg = File('test/fixtures/collection/idols/jesse-owens/image.jpg').readAsBytesSync();
     final idol = await c.addIdol(
       Idol(id: 'x', name: 'Ada Nueva', category: 'Ciencia', body: 'Porque sí.'),
       jpg,

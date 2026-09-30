@@ -1,0 +1,81 @@
+name: App Android
+
+# Compila el APK cada vez que cambia el código de la app.
+# Los cambios solo en collection/ (tus ídolos) no disparan builds: la app los
+# baja sola al abrirse.
+on:
+  push:
+    paths:
+      - "app/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.5
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      # Clave de firma fija (opcional pero recomendada): con los secrets
+      # ANDROID_KEYSTORE_BASE64 y ANDROID_KEYSTORE_PASSWORD cada APK se instala
+      # encima del anterior. Sin ellos se firma con una clave de debug nueva.
+      - name: Preparar clave de firma
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > android/app/idol-release.jks
+          {
+            echo "storeFile=idol-release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=idol"
+            echo "keyPassword=$KEYSTORE_PASSWORD"
+          } > android/key.properties
+
+      - name: Compilar APK
+        run: |
+          flutter build apk --release --build-number=${{ github.run_number }} --build-name=1.0.${{ github.run_number }}
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/salon-de-idolos.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: salon-de-idolos-apk
+          path: app/build/app/outputs/flutter-apk/salon-de-idolos.apk
+
+      # En main, además, publica un Release: desde el teléfono entrás a
+      # github.com/<usuario>/Idol-collection/releases/latest y bajás el APK.
+      - name: Publicar release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-v1.0.${{ github.run_number }}
+          name: Salón de Ídolos 1.0.${{ github.run_number }}
+          body: APK compilado automáticamente desde ${{ github.sha }}.
+          files: app/build/app/outputs/flutter-apk/salon-de-idolos.apk
+          make_latest: true

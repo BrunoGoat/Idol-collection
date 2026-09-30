@@ -4,13 +4,6 @@
     "theme": "nebulosa"
   },
   "cards": {
-    "ada-lovelace": {
-      "x": -420.0,
-      "y": 330.0,
-      "scale": 0.95,
-      "rotation": -0.03,
-      "z": 4
-    },
     "amelia-earhart": {
       "x": 120.0,
       "y": 230.0,

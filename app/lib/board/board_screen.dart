@@ -19,6 +19,7 @@ import '../screens/reveal_overlay.dart';
 import '../screens/search_sheet.dart';
 import '../screens/settings_screen.dart';
 import '../services/sfx.dart';
+import '../services/updater.dart';
 import '../widgets/backgrounds.dart';
 import '../widgets/glass.dart';
 import '../widgets/stamp_card.dart';
@@ -72,6 +73,7 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
   bool _fitted = false;
   bool _dailyDone = false;
   bool _revealing = false;
+  bool _updateChecked = false;
 
   String? _selected;
   String? _highlight;
@@ -147,6 +149,10 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
     setState(() {});
     final syncDone = collection.status != SyncStatus.syncing && collection.status != SyncStatus.idle;
     if (syncDone) {
+      if (collection.status == SyncStatus.ok && !_updateChecked) {
+        _updateChecked = true;
+        _checkForUpdate();
+      }
       if (collection.arrivals.isNotEmpty) {
         _dailyDone = true; // hoy manda la novedad
         _revealNext();
@@ -459,6 +465,25 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
     }
     _revealing = false;
     if (mounted && collection.arrivals.isNotEmpty) _revealNext();
+  }
+
+  /// Una vez por apertura: si hay un APK más nuevo en Releases, ofrece instalarlo.
+  Future<void> _checkForUpdate() async {
+    try {
+      final update = await Updater.check(settings);
+      if (update == null) return;
+      // Esperar a que terminen la guía, las revelaciones o el ídolo del día.
+      for (var i = 0; i < 20 && mounted; i++) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        if (!mounted) return;
+        if (_revealing || !settings.seenTutorial) continue;
+        if (ModalRoute.of(context)?.isCurrent ?? false) break;
+      }
+      if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? false)) return;
+      await showUpdateDialog(context, settings, update);
+    } catch (_) {
+      // Sin conexión o sin permisos: se vuelve a intentar la próxima vez.
+    }
   }
 
   Future<void> _maybeIdolOfTheDay() async {

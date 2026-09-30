@@ -140,5 +140,30 @@ class GitHubClient {
     return utf8.decode(r.bodyBytes);
   }
 
+  /// Último release publicado: (tag, notas, id del APK) o null si no hay.
+  Future<({String tag, String notes, int? apkAssetId})?> latestRelease() async {
+    final r = await _http.get(Uri.parse('$_base/releases/latest'), headers: _headers());
+    if (r.statusCode == 404) return null;
+    _check(r);
+    final j = jsonDecode(r.body) as Map<String, dynamic>;
+    final assets = (j['assets'] as List? ?? const []).cast<Map<String, dynamic>>();
+    final apk = assets.where((a) => (a['name'] as String? ?? '').endsWith('.apk')).firstOrNull;
+    return (tag: j['tag_name'] as String? ?? '', notes: j['body'] as String? ?? '', apkAssetId: apk?['id'] as int?);
+  }
+
+  /// URL firmada y temporal para bajar un archivo de un release privado.
+  /// GitHub responde con una redirección; la seguimos a mano para no mandarle
+  /// el token al servidor de descargas.
+  Future<String> assetDownloadUrl(int assetId) async {
+    final req = http.Request('GET', Uri.parse('$_base/releases/assets/$assetId'))
+      ..headers.addAll(_headers('application/octet-stream'))
+      ..followRedirects = false;
+    final r = await http.Response.fromStream(await _http.send(req));
+    final location = r.headers['location'];
+    if (r.statusCode >= 300 && r.statusCode < 400 && location != null) return location;
+    _check(r);
+    throw GitHubException(r.statusCode, 'GitHub no devolvió el enlace de descarga.');
+  }
+
   void close() => _http.close();
 }

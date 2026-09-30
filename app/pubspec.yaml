@@ -47,6 +47,8 @@ dependencies:
   flutter_markdown_plus: ^1.0.12
   path: ^1.9.1
   crypto: ^3.0.7
+  ota_update: ^7.1.0
+  package_info_plus: ^10.2.1
 
 dev_dependencies:
   flutter_test:

@@ -41,22 +41,17 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
-      # Clave de firma fija (opcional pero recomendada): con los secrets
-      # ANDROID_KEYSTORE_BASE64 y ANDROID_KEYSTORE_PASSWORD cada APK se instala
-      # encima del anterior. Sin ellos se firma con una clave de debug nueva.
+      # Clave de firma fija: se deriva siempre igual de la frase guardada en el
+      # secret ANDROID_SIGNING_SEED, así cada APK se instala encima del anterior.
+      # Sin el secret se firma con una clave de debug distinta en cada build.
       - name: Preparar clave de firma
         env:
-          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        if: env.KEYSTORE_B64 != ''
+          SIGNING_SEED: ${{ secrets.ANDROID_SIGNING_SEED }}
+        if: env.SIGNING_SEED != ''
         run: |
-          echo "$KEYSTORE_B64" | base64 -d > android/app/idol-release.jks
-          {
-            echo "storeFile=idol-release.jks"
-            echo "storePassword=$KEYSTORE_PASSWORD"
-            echo "keyAlias=idol"
-            echo "keyPassword=$KEYSTORE_PASSWORD"
-          } > android/key.properties
+          python3 -m venv /tmp/signing
+          /tmp/signing/bin/pip install --quiet cryptography sympy
+          /tmp/signing/bin/python android/tools/make_keystore.py android/app/idol-release.p12 android/key.properties
 
       - name: Compilar APK
         run: |
@@ -78,6 +73,6 @@ jobs:
           name: Salón de Ídolos 1.0.${{ github.run_number }}
           body: |
             APK compilado automáticamente desde la rama `${{ github.ref_name }}` (${{ github.sha }}).
-            Bajá `salon-de-idolos.apk` desde el teléfono e instalalo.
+            Bajá `salon-de-idolos.apk` desde el teléfono e instalalo, o actualizá desde la app.
           files: app/build/app/outputs/flutter-apk/salon-de-idolos.apk
           make_latest: true

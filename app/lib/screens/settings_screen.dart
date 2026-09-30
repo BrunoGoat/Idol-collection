@@ -5,6 +5,7 @@ import '../data/collection.dart';
 import '../data/github_client.dart';
 import '../models/catalog.dart';
 import '../widgets/backgrounds.dart';
+import '../services/updater.dart';
 import 'catalog_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -189,6 +190,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               if (_testResult != null) Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(_testResult!)),
+              const _Header('App'),
+              const _UpdateTile(),
               const _Header('Estado'),
               ListTile(
                 leading: const Icon(Icons.sync),
@@ -251,5 +254,55 @@ class _TokenHelp extends StatelessWidget {
           ),
           SizedBox(height: 8),
         ],
+      );
+}
+
+/// Versión instalada y botón para buscar una nueva.
+class _UpdateTile extends StatefulWidget {
+  const _UpdateTile();
+
+  @override
+  State<_UpdateTile> createState() => _UpdateTileState();
+}
+
+class _UpdateTileState extends State<_UpdateTile> {
+  String _version = '…';
+  bool _checking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Updater.current().then((v) {
+      if (mounted) setState(() => _version = '${v.version} (compilación ${v.build})');
+    }).catchError((_) {});
+  }
+
+  Future<void> _check() async {
+    final settings = AppScope.of(context).settings;
+    setState(() => _checking = true);
+    try {
+      final update = await Updater.check(settings);
+      if (!mounted) return;
+      if (update == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ya tenés la última versión ✨')));
+      } else {
+        await showUpdateDialog(context, settings, update);
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo buscar: $e')));
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+        leading: const Icon(Icons.system_update),
+        title: const Text('Buscar actualización'),
+        subtitle: Text('Versión instalada: $_version'),
+        trailing: _checking
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.chevron_right),
+        onTap: _checking ? null : _check,
       );
 }

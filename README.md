@@ -38,20 +38,18 @@ collection/   ← mis ídolos: imágenes + card.md + layout.json  (ver collectio
    publica en **Releases** (`/releases/latest` del repo). Desde el teléfono,
    con la sesión de GitHub iniciada, bajá `salon-de-idolos.apk` e instalalo
    (Android va a pedir permiso para instalar apps de origen desconocido).
-2. **Opcional, recomendado — clave de firma fija.** Sin ella, cada APK sale
-   firmado con una clave distinta y para actualizar hay que desinstalar la
-   versión anterior (no perdés ídolos, que viven en el repo; solo tenés que
-   volver a pegar el token). Para evitarlo, una sola vez, en una compu con Java:
-
-   ```bash
-   keytool -genkeypair -keystore idol-release.jks -alias idol -keyalg RSA -keysize 2048 -validity 36500
-   base64 -w0 idol-release.jks   # en macOS: base64 -i idol-release.jks
-   ```
-
-   y en GitHub → Settings → Secrets and variables → Actions creá
-   `ANDROID_KEYSTORE_BASE64` (la salida de base64) y
-   `ANDROID_KEYSTORE_PASSWORD` (la contraseña que elegiste). Guardá el `.jks`
-   en un lugar seguro y **no lo subas al repo**.
+2. **Actualizaciones:** la app busca versiones nuevas al abrirse (y en
+   Ajustes → Buscar actualización) y las instala encima con un toque.
+3. **Clave de firma fija (una sola vez).** Para que Android acepte instalar cada
+   versión encima de la anterior, todas tienen que estar firmadas con la misma
+   clave. No hay ningún archivo de clave en el repo: GitHub Actions la genera
+   siempre igual a partir de una frase secreta tuya
+   (`app/android/tools/make_keystore.py`). En GitHub → el repo → Settings →
+   Secrets and variables → Actions → **New repository secret**:
+   - Name: `ANDROID_SIGNING_SEED`
+   - Secret: una frase larga que inventes (por ejemplo 6 o más palabras al
+     azar). No hace falta recordarla, pero **no la cambies**: otra frase es
+     otra clave, y habría que desinstalar la app para volver a instalarla.
 
 ## Conectar la app al repo
 

@@ -12,6 +12,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Lo necesita el actualizador integrado (ota_update).
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -32,8 +34,8 @@ android {
     }
 
     // Firma con una clave fija para que cada APK nuevo se instale encima del
-    // anterior. La clave NO está en el repo: GitHub Actions la arma desde los
-    // secrets (ver README). Sin ella, se firma con la clave de debug.
+    // anterior. La clave NO está en el repo: GitHub Actions la deriva del secret
+    // ANDROID_SIGNING_SEED (ver tools/make_keystore.py). Sin él, clave de debug.
     val keyFile = rootProject.file("key.properties")
     val keyProps = Properties().apply {
         if (keyFile.exists()) keyFile.inputStream().use { load(it) }
@@ -42,6 +44,7 @@ android {
         if (keyFile.exists()) {
             create("release") {
                 storeFile = file(keyProps.getProperty("storeFile"))
+                storeType = keyProps.getProperty("storeType", "pkcs12")
                 storePassword = keyProps.getProperty("storePassword")
                 keyAlias = keyProps.getProperty("keyAlias")
                 keyPassword = keyProps.getProperty("keyPassword")
@@ -64,4 +67,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

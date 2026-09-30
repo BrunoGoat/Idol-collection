@@ -92,13 +92,19 @@ class LocalStore {
   Future<bool> exists(String repoPath) => file(repoPath).exists();
 
   Future<String?> readText(String repoPath) async {
-    final f = file(repoPath);
-    return await f.exists() ? f.readAsString() : null;
+    try {
+      return await file(repoPath).readAsString();
+    } on FileSystemException {
+      return null;
+    }
   }
 
   Future<Uint8List?> readBytes(String repoPath) async {
-    final f = file(repoPath);
-    return await f.exists() ? f.readAsBytes() : null;
+    try {
+      return await file(repoPath).readAsBytes();
+    } on FileSystemException {
+      return null; // No existe, o se borró mientras tanto (una sincronización).
+    }
   }
 
   /// Escribe un archivo que vino del repo (queda sincronizado).

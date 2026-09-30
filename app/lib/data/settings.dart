@@ -72,6 +72,12 @@ class AppSettings extends ChangeNotifier {
   Future<void> setSeenIds(Set<String> ids) => _prefs.setStringList('seen_ids', ids.toList());
   bool get hasSeenAnything => _prefs.containsKey('seen_ids');
 
+  bool get seenTutorial => _prefs.getBool('seen_tutorial') ?? false;
+  Future<void> setSeenTutorial() async {
+    await _prefs.setBool('seen_tutorial', true);
+    notifyListeners();
+  }
+
   String? get lastIdolOfDay => _prefs.getString('last_idol_of_day');
   Future<void> setLastIdolOfDay(String v) => _prefs.setString('last_idol_of_day', v);
 }

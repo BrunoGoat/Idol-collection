@@ -160,4 +160,13 @@ void main() {
     await c.sync();
     expect(BoardLayout.fromJsonString(gh.text('collection/layout.json')).theme, 'synthwave');
   });
+
+  test('una rama sin collection/ da un error claro', () async {
+    gh.files.clear();
+    gh.put('README.md', 'hola');
+    final c = await open();
+    await c.sync();
+    expect(c.status, SyncStatus.error);
+    expect(c.lastError, contains('no tiene la carpeta collection/'));
+  });
 }

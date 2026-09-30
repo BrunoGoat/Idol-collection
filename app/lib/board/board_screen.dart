@@ -639,6 +639,8 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
                 onFit: () => _flyTo(_fitAll(), duration: const Duration(milliseconds: 900)),
               ),
             ),
+            if (!settings.seenTutorial)
+              Positioned.fill(child: _Tutorial(accent: theme.accent, onDone: settings.setSeenTutorial)),
             if (_banner != null)
               Positioned(
                 top: padding.top + 80,
@@ -982,6 +984,63 @@ class _EmptyState extends StatelessWidget {
                 ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Guía de gestos que aparece solo la primera vez.
+class _Tutorial extends StatelessWidget {
+  const _Tutorial({required this.accent, required this.onDone});
+  final Color accent;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget row(IconData icon, String title, String text) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Icon(icon, color: accent, size: 30),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontFamily: kTitleFont, color: Colors.white, fontSize: 14)),
+                    Text(text, style: const TextStyle(fontFamily: kBodyFont, color: Colors.white70, fontSize: 16)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+    return ColoredBox(
+      color: Colors.black54,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Glass(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Bienvenido al salón',
+                  style: TextStyle(fontFamily: 'CinzelDecorative', fontSize: 22, color: Colors.white, shadows: [Shadow(color: accent, blurRadius: 14)]),
+                ),
+                const SizedBox(height: 8),
+                row(Icons.pinch, 'Explorar', 'Arrastrá para moverte y pellizcá para acercarte o alejarte.'),
+                row(Icons.touch_app, 'Ver una carta', 'Tocala para verla de cerca; tocala otra vez para darla vuelta.'),
+                row(Icons.pan_tool, 'Acomodar', 'Mantenela apretada para moverla. Después, pellizcá para agrandarla o rotarla.'),
+                row(Icons.add_circle, 'Agregar ídolos', 'Con el + elegís foto, marco, fuente y rareza.'),
+                row(Icons.tune, 'Conectar el repo', 'En Ajustes pegás tu token de GitHub y elegís entre 20 fondos.'),
+                const SizedBox(height: 8),
+                FilledButton(onPressed: onDone, child: const Text('¡Entendido!')),
+              ],
+            ),
           ),
         ),
       ),

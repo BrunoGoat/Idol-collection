@@ -202,6 +202,13 @@ class Collection extends ChangeNotifier {
 
   Future<void> _pull(GitHubClient client) async {
     final remote = await client.listFiles('collection/');
+    if (remote.isEmpty && store.indexedPaths.isEmpty) {
+      throw GitHubException(
+        0,
+        'La rama "${settings.branch}" no tiene la carpeta collection/. '
+        'Si todavía no mergeaste el PR, poné la rama donde están los datos en Ajustes.',
+      );
+    }
     final remotePaths = {for (final f in remote) f.path: f};
     final pending = store.pending;
     final layoutDirty = pending.layoutIds.isNotEmpty || pending.theme;

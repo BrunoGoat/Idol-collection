@@ -68,14 +68,16 @@ jobs:
           name: salon-de-idolos-apk
           path: app/build/app/outputs/flutter-apk/salon-de-idolos.apk
 
-      # En main, además, publica un Release: desde el teléfono entrás a
+      # Publica un Release: desde el teléfono entrás a
       # github.com/<usuario>/Idol-collection/releases/latest y bajás el APK.
       - name: Publicar release
-        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: app-v1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
           name: Salón de Ídolos 1.0.${{ github.run_number }}
-          body: APK compilado automáticamente desde ${{ github.sha }}.
+          body: |
+            APK compilado automáticamente desde la rama `${{ github.ref_name }}` (${{ github.sha }}).
+            Bajá `salon-de-idolos.apk` desde el teléfono e instalalo.
           files: app/build/app/outputs/flutter-apk/salon-de-idolos.apk
           make_latest: true

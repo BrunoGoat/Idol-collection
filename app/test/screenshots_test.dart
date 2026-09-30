@@ -81,6 +81,7 @@ void main() {
         ..haptics = false
         ..idolOfTheDay = false
         ..tiltHolo = false;
+      if (Platform.environment['TUTORIAL'] != '1') await settings.setSeenTutorial();
       collection = await Collection.open(settings, baseDir: tmp, httpFactory: gh.client);
       await collection.sync();
       if (theme != collection.layout.theme) collection.layout.theme = theme;

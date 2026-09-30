@@ -13,6 +13,7 @@ class GitHubException implements Exception {
         401 => 'Token inválido o vencido (401).',
         403 => 'Sin permiso sobre el repo (403). Revisá los permisos del token.',
         404 => 'No se encontró el repo o la rama (404).',
+        0 => message,
         _ => 'GitHub respondió $status: $message',
       };
 }

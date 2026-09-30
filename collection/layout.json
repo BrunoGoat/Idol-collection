@@ -3,5 +3,13 @@
   "board": {
     "theme": "nebulosa"
   },
-  "cards": {}
+  "cards": {
+    "miyamoto-dai": {
+      "x": 120.0,
+      "y": 230.0,
+      "scale": 1.144,
+      "rotation": -0.0277,
+      "z": 1
+    }
+  }
 }

@@ -3,13 +3,5 @@
   "board": {
     "theme": "nebulosa"
   },
-  "cards": {
-    "amelia-earhart": {
-      "x": 120.0,
-      "y": 230.0,
-      "scale": 1.0,
-      "rotation": 0.05,
-      "z": 7
-    }
-  }
+  "cards": {}
 }

@@ -4,61 +4,54 @@
     "theme": "nebulosa"
   },
   "cards": {
-    "marie-curie": {
-      "x": -420,
-      "y": -160,
-      "scale": 1.35,
-      "rotation": -0.05,
-      "z": 8
-    },
-    "nikola-tesla": {
-      "x": -760,
-      "y": 120,
-      "scale": 1.0,
-      "rotation": 0.06,
-      "z": 3
-    },
     "ada-lovelace": {
-      "x": -420,
-      "y": 330,
+      "x": -420.0,
+      "y": 330.0,
       "scale": 0.95,
       "rotation": -0.03,
       "z": 4
     },
-    "galileo-galilei": {
-      "x": -780,
-      "y": -330,
-      "scale": 0.9,
-      "rotation": 0.08,
-      "z": 2
-    },
-    "leonardo-da-vinci": {
-      "x": 80,
-      "y": -300,
-      "scale": 1.15,
-      "rotation": 0.04,
-      "z": 5
-    },
-    "ludwig-van-beethoven": {
-      "x": 420,
-      "y": -140,
-      "scale": 1.1,
-      "rotation": -0.07,
-      "z": 6
-    },
     "amelia-earhart": {
-      "x": 120,
-      "y": 230,
+      "x": 120.0,
+      "y": 230.0,
       "scale": 1.0,
       "rotation": 0.05,
       "z": 7
     },
     "jesse-owens": {
-      "x": 480,
-      "y": 300,
+      "x": 480.0,
+      "y": 300.0,
       "scale": 1.2,
       "rotation": -0.04,
       "z": 9
+    },
+    "leonardo-da-vinci": {
+      "x": 80.0,
+      "y": -300.0,
+      "scale": 1.15,
+      "rotation": 0.04,
+      "z": 5
+    },
+    "ludwig-van-beethoven": {
+      "x": 420.0,
+      "y": -140.0,
+      "scale": 1.1,
+      "rotation": -0.07,
+      "z": 6
+    },
+    "marie-curie": {
+      "x": -420.0,
+      "y": -160.0,
+      "scale": 1.35,
+      "rotation": -0.05,
+      "z": 8
+    },
+    "nikola-tesla": {
+      "x": -760.0,
+      "y": 120.0,
+      "scale": 1.0,
+      "rotation": 0.06,
+      "z": 3
     }
   }
 }

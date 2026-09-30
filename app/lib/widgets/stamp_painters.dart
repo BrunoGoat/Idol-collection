@@ -58,6 +58,67 @@ Color rarityGlowColor(Rarity rarity, double t) {
 // Brillo exterior
 // ---------------------------------------------------------------------------
 
+/// Brillo, sombra y filo pre-renderizados una sola vez como imágenes.
+///
+/// Un `MaskFilter.blur` se recalcula en cada frame y su costo crece con el
+/// zoom (a 4× cuesta 16 veces más). Como el contorno de la estampilla es
+/// siempre el mismo, lo desenfocamos una vez y después solo lo teñimos del
+/// color de la rareza y lo estiramos: el resultado se ve igual y es barato.
+class GlowImages {
+  GlowImages._();
+
+  static const double margin = 70;
+  static const double _scale = 1.5;
+  static const Rect dst = Rect.fromLTWH(-margin, -margin, kCardW + margin * 2, kCardH + margin * 2);
+
+  static ui.Image? _glow, _rim, _shadow;
+
+  static ui.Image get glow => _glow ??= _render((c) => c.drawPath(
+        stampPath(),
+        Paint()
+          ..color = Colors.white
+          ..maskFilter = const MaskFilter.blur(BlurStyle.outer, 20),
+      ));
+
+  static ui.Image get rim => _rim ??= _render((c) => c.drawPath(
+        stampPath(),
+        Paint()
+          ..color = Colors.white
+          ..maskFilter = const MaskFilter.blur(BlurStyle.outer, 4),
+      ));
+
+  static ui.Image get shadow => _shadow ??= _render((c) => c.drawPath(
+        stampPath().shift(const Offset(4, 9)),
+        Paint()
+          ..color = Colors.black
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+      ));
+
+  static ui.Image _render(void Function(Canvas) draw) {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder)
+      ..scale(_scale)
+      ..translate(margin, margin);
+    draw(canvas);
+    return recorder.endRecording().toImageSync(
+      (dst.width * _scale).ceil(),
+      (dst.height * _scale).ceil(),
+    );
+  }
+
+  /// Dibuja una de las imágenes teñida de [color] (el alfa del color manda).
+  static void paint(Canvas canvas, ui.Image image, Color color) {
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+      dst,
+      Paint()
+        ..filterQuality = FilterQuality.low
+        ..colorFilter = ColorFilter.mode(color, BlendMode.srcIn),
+    );
+  }
+}
+
 class GlowPainter extends CustomPainter {
   GlowPainter({required this.rarity, required this.time, this.selected = false, this.boost = 1})
       : super(repaint: time);
@@ -70,31 +131,15 @@ class GlowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final t = time.value;
-    final path = stampPath();
     // Sombra de apoyo.
-    canvas.drawPath(
-      path.shift(const Offset(4, 9)),
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.55)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
-    );
+    GlowImages.paint(canvas, GlowImages.shadow, Colors.black.withValues(alpha: 0.55));
     final pulse = 0.6 + 0.4 * math.sin(t * rarity.pulseSpeed * 2.1);
     final strength = (rarity.glow * pulse * boost).clamp(0.0, 1.0);
     if (strength > 0.02) {
       final color = rarityGlowColor(rarity, t);
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = color.withValues(alpha: 0.85 * strength)
-          ..maskFilter = MaskFilter.blur(BlurStyle.outer, 10 + 16 * strength),
-      );
+      GlowImages.paint(canvas, GlowImages.glow, color.withValues(alpha: (0.95 * strength).clamp(0.0, 1.0)));
       if (rarity.index >= Rarity.legendary.index) {
-        canvas.drawPath(
-          path,
-          Paint()
-            ..color = Colors.white.withValues(alpha: 0.35 * strength)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.outer, 4),
-        );
+        GlowImages.paint(canvas, GlowImages.rim, Colors.white.withValues(alpha: 0.35 * strength));
       }
     }
     if (selected) {
@@ -242,14 +287,16 @@ class PaperPainter extends CustomPainter {
     if (frame.fx == FrameFx.neon) {
       final flick = 0.8 + 0.2 * math.sin(t * 13) * math.sin(t * 7.3);
       for (final (rect, color) in [(outer, frame.border2), (win, frame.border)]) {
-        canvas.drawRect(
-          rect,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 5
-            ..color = color.withValues(alpha: 0.6 * flick)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
-        );
+        // Resplandor del neón con trazos anchos y translúcidos (sin blur).
+        for (final (width, alpha) in const [(11.0, 0.12), (7.0, 0.2), (4.0, 0.35)]) {
+          canvas.drawRect(
+            rect,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = width
+              ..color = color.withValues(alpha: alpha * flick),
+          );
+        }
         canvas.drawRect(
           rect,
           Paint()
@@ -343,13 +390,9 @@ class PaperPainter extends CustomPainter {
           canvas.drawLine(Offset(x + 10, kCardH - 10), Offset(x + 10, kCardH - 15), p);
         }
         final pulse = (t * 0.5) % 1.0;
-        canvas.drawCircle(
-          Offset(10 + (kCardW - 20) * pulse, 10),
-          2.2,
-          Paint()
-            ..color = frame.border2
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
-        );
+        final spark = Offset(10 + (kCardW - 20) * pulse, 10);
+        canvas.drawCircle(spark, 4.5, Paint()..color = frame.border2.withValues(alpha: 0.3));
+        canvas.drawCircle(spark, 2, Paint()..color = frame.border2);
       case Ornament.flames:
         final flame = Paint()..color = frame.border2.withValues(alpha: 0.9);
         for (var i = 0; i < 9; i++) {
@@ -497,15 +540,16 @@ class ShadePainter extends CustomPainter {
     // Holograma para legendarias, míticas y el marco holográfico.
     if (rarity.index >= Rarity.legendary.index || frame.fx == FrameFx.holo || tl != Offset.zero) {
       final shift = (t * 0.08 + tl.dx * 0.5 + tl.dy * 0.3) % 1.0;
-      final a = (frame.fx == FrameFx.holo ? 0.3 : 0.16) + tl.distance * 0.2;
+      // Mezcla normal (no "overlay"): más barata en Android, con menos opacidad
+      // para que el arcoíris no lave la imagen.
+      final a = (frame.fx == FrameFx.holo ? 0.17 : 0.09) + tl.distance * 0.12;
       final colors = [
         for (final h in [0, 50, 110, 180, 240, 300, 360])
-          HSVColor.fromAHSV(a.clamp(0, 0.6), (h + shift * 360) % 360, 0.6, 1).toColor(),
+          HSVColor.fromAHSV(a.clamp(0, 0.35), (h + shift * 360) % 360, 0.7, 1).toColor(),
       ];
       canvas.drawRect(
         rect,
         Paint()
-          ..blendMode = BlendMode.overlay
           ..shader = ui.Gradient.linear(
             Offset(size.width * (-0.5 + shift), 0),
             Offset(size.width * (0.5 + shift), size.height),
@@ -529,11 +573,10 @@ class ShadePainter extends CustomPainter {
       canvas.drawRect(
         rect,
         Paint()
-          ..blendMode = BlendMode.plus
           ..shader = ui.Gradient.linear(
             Offset(x - 50, 0),
             Offset(x + 50, size.height * 0.5),
-            [Colors.white.withValues(alpha: 0), Colors.white.withValues(alpha: 0.42), Colors.white.withValues(alpha: 0)],
+            [Colors.white.withValues(alpha: 0), Colors.white.withValues(alpha: 0.32), Colors.white.withValues(alpha: 0)],
             [0, 0.5, 1],
           ),
       );

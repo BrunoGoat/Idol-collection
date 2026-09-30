@@ -348,10 +348,9 @@ final List<BoardTheme> kThemes = [
       final flick = 0.4 + 0.6 * (0.5 + 0.5 * math.sin(t * 6 + i * 1.3));
       final sway = math.sin(t * 1.5 + i) * 10;
       final col = Color.lerp(const Color(0xFFFFD54F), const Color(0xFFFF3D00), r.nextDouble())!;
-      c.drawCircle(p + Offset(sway, 0), 0.8 + r.nextDouble() * 1.8,
-          Paint()
-            ..color = col.withValues(alpha: flick)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5));
+      final rad = 0.8 + r.nextDouble() * 1.8;
+      c.drawCircle(p + Offset(sway, 0), rad * 2.4, Paint()..color = col.withValues(alpha: flick * 0.25));
+      c.drawCircle(p + Offset(sway, 0), rad, Paint()..color = col.withValues(alpha: flick));
     });
     _vignette(c, s, 0.4);
   }),
@@ -514,9 +513,12 @@ final List<BoardTheme> kThemes = [
       }
       c.drawPath(bolt, Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
-        ..color = Colors.white.withValues(alpha: flash * 2)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
+        ..strokeWidth = 7
+        ..color = const Color(0xFFB3E5FC).withValues(alpha: flash * 0.6));
+      c.drawPath(bolt, Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..color = Colors.white.withValues(alpha: (flash * 2).clamp(0.0, 1.0)));
     }
     final o = _par(cam, 0.05);
     final rnd = math.Random(2);

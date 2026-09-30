@@ -265,9 +265,7 @@ class _BurstPainter extends CustomPainter {
       canvas.drawCircle(
         p,
         1.5 + rnd.nextDouble() * 3,
-        Paint()
-          ..color = col.withValues(alpha: alpha)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+        Paint()..color = col.withValues(alpha: alpha),
       );
     }
     final ring = Curves.easeOut.transform((progress * 2).clamp(0.0, 1.0));

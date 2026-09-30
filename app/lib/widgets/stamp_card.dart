@@ -184,7 +184,7 @@ class _NameBand extends StatelessWidget {
   Widget build(BuildContext context) {
     final glow = rarityGlowColor(idol.rarity, 0);
     final shadows = [
-      Shadow(color: frame.isDark ? glow.withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.8), blurRadius: 10),
+      Shadow(color: frame.isDark ? glow.withValues(alpha: 0.9) : Colors.white.withValues(alpha: 0.8), blurRadius: 7),
       Shadow(color: Colors.black.withValues(alpha: frame.isDark ? 0.8 : 0.25), blurRadius: 2, offset: const Offset(0, 1)),
     ];
     return Column(

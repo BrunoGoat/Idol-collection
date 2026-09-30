@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../app_scope.dart';
@@ -76,6 +78,7 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
   Timer? _highlightTimer;
 
   AnimationController? _anim;
+  final _boardKey = GlobalKey();
 
   // Estado del gesto en curso.
   _Gesture _gesture = _Gesture.camera;
@@ -374,8 +377,33 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
     sfx.light();
     await _flyTo(_cardCamera(p), duration: const Duration(milliseconds: 650));
     if (!mounted) return;
-    await Navigator.of(context).push(DetailScreen.route(id, time));
+    final backdrop = await _snapshotBoard();
+    if (!mounted) return;
+    await Navigator.of(context).push(DetailScreen.route(id, time, backdrop: backdrop));
     if (mounted) setState(() {});
+  }
+
+  /// Foto chiquita y ya desenfocada del tablero, para usar de fondo detrás de
+  /// una carta abierta. Así el tablero no se dibuja ni se desenfoca en cada
+  /// frame mientras la mirás.
+  Future<ui.Image?> _snapshotBoard() async {
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+      final boundary = _boardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null || boundary.debugNeedsPaint) return null;
+      final small = boundary.toImageSync(pixelRatio: 0.3);
+      final recorder = ui.PictureRecorder();
+      Canvas(recorder).drawImage(
+        small,
+        Offset.zero,
+        Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: 3, sigmaY: 3, tileMode: TileMode.clamp),
+      );
+      final blurred = recorder.endRecording().toImageSync(small.width, small.height);
+      small.dispose();
+      return blurred;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _addCard() async {
@@ -529,19 +557,22 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
             onLongPressStart: (d) => _onCardLongPressStart(id, d),
             onLongPressMoveUpdate: (d) => _onCardLongPressMove(id, d),
             onLongPressEnd: (_) => _onCardLongPressEnd(id),
-            child: lod.minimal
-                ? _MiniCard(idol: idol, image: _imageFor(idol, lod), selected: _selected == id)
-                : StampCard(
+            // Cada carta en su propia capa: mover la cámara no la redibuja.
+            child: RepaintBoundary(
+              child: lod.minimal
+                  ? _MiniCard(idol: idol, image: _imageFor(idol, lod), selected: _selected == id)
+                  : StampCard(
                     idol: idol,
                     number: collection.numbers[id] ?? 0,
                     image: _imageFor(idol, lod),
                     time: time,
                     textOpacity: lod.text,
                     detail: lod.detail,
-                    animate: lod.animate || _selected == id || _highlight == id,
+                    animate: (lod.animate && !settings.smooth) || _selected == id || _highlight == id,
                     selected: _selected == id,
                     glowBoost: _highlight == id ? 2.2 : 1,
                   ),
+            ),
           ),
         ),
       ),
@@ -569,10 +600,12 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
             child: child,
           );
         },
-        child: SizedBox(
-          width: kWorldSize,
-          height: kWorldSize,
-          child: Stack(clipBehavior: Clip.none, children: cards),
+        child: RepaintBoundary(
+          child: SizedBox(
+            width: kWorldSize,
+            height: kWorldSize,
+            child: Stack(clipBehavior: Clip.none, children: cards),
+          ),
         ),
       ),
     );
@@ -596,30 +629,39 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
         final padding = MediaQuery.paddingOf(context);
         return Stack(
           children: [
-            Positioned.fill(child: BoardBackground(theme: theme, time: time, camera: camera)),
-            if (settings.constellations)
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: CustomPaint(
-                    painter: ConstellationPainter(
-                      idols: collection.idols,
-                      layout: collection.layout,
-                      camera: camera,
-                      time: time,
-                    ),
-                  ),
-                ),
-              ),
             Positioned.fill(
-              child: Listener(
-                onPointerSignal: _onWheel,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTapUp: _onTapEmpty,
-                  onScaleStart: _onScaleStart,
-                  onScaleUpdate: _onScaleUpdate,
-                  onScaleEnd: _onScaleEnd,
-                  child: ClipRect(child: _cardsLayer()),
+              child: RepaintBoundary(
+                key: _boardKey,
+                child: Stack(
+                  children: [
+                    Positioned.fill(child: BoardBackground(theme: theme, time: time, camera: camera)),
+                    if (settings.constellations)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: CustomPaint(
+                            painter: ConstellationPainter(
+                              idols: collection.idols,
+                              layout: collection.layout,
+                              camera: camera,
+                              time: time,
+                            ),
+                          ),
+                        ),
+                      ),
+                    Positioned.fill(
+                      child: Listener(
+                        onPointerSignal: _onWheel,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTapUp: _onTapEmpty,
+                          onScaleStart: _onScaleStart,
+                          onScaleUpdate: _onScaleUpdate,
+                          onScaleEnd: _onScaleEnd,
+                          child: ClipRect(child: _cardsLayer()),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

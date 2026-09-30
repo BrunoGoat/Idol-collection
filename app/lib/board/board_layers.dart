@@ -79,9 +79,9 @@ class ConstellationPainter extends CustomPainter {
         sa,
         sb,
         Paint()
-          ..color = color.withValues(alpha: 0.10 + 0.08 * pulse)
-          ..strokeWidth = 3 + 4 * cam.zoom
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+          ..color = color.withValues(alpha: 0.06 + 0.05 * pulse)
+          ..strokeWidth = 6 + 6 * cam.zoom
+          ..strokeCap = StrokeCap.round,
       );
       canvas.drawLine(
         sa,

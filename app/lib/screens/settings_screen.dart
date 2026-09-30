@@ -119,6 +119,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onChanged: (v) => settings.setFlag('tiltHolo', v),
               ),
               SwitchListTile(
+                secondary: const Icon(Icons.speed),
+                title: const Text('Modo fluido'),
+                subtitle: const Text('Las cartas del tablero quedan quietas (la carta abierta sigue animada). Útil si el teléfono va lento.'),
+                value: settings.smooth,
+                onChanged: (v) => settings.setFlag('smooth', v),
+              ),
+              SwitchListTile(
                 secondary: const Icon(Icons.volume_up),
                 title: const Text('Sonidos'),
                 value: settings.sound,

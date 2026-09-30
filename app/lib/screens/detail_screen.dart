@@ -22,16 +22,20 @@ import 'card_editor_screen.dart';
 /// La carta de cerca: se da vuelta al tocarla, brilla con la inclinación del
 /// teléfono y se puede compartir como imagen.
 class DetailScreen extends StatefulWidget {
-  const DetailScreen({super.key, required this.idolId, required this.time});
+  const DetailScreen({super.key, required this.idolId, required this.time, this.backdrop});
 
   final String idolId;
   final ValueNotifier<double> time;
 
-  static Route<void> route(String id, ValueNotifier<double> time) => PageRouteBuilder<void>(
-        opaque: false,
+  /// Foto ya desenfocada del tablero. Con ella la ruta es opaca: el tablero
+  /// deja de dibujarse (y de animarse) mientras la carta está abierta.
+  final ui.Image? backdrop;
+
+  static Route<void> route(String id, ValueNotifier<double> time, {ui.Image? backdrop}) => PageRouteBuilder<void>(
+        opaque: backdrop != null,
         transitionDuration: const Duration(milliseconds: 420),
         reverseTransitionDuration: const Duration(milliseconds: 300),
-        pageBuilder: (_, _, _) => DetailScreen(idolId: id, time: time),
+        pageBuilder: (_, _, _) => DetailScreen(idolId: id, time: time, backdrop: backdrop),
         transitionsBuilder: (_, a, _, child) => FadeTransition(
           opacity: a,
           child: ScaleTransition(
@@ -89,6 +93,7 @@ class _DetailScreenState extends State<DetailScreen> with TickerProviderStateMix
     _accel?.cancel();
     _flip.dispose();
     _settle.dispose();
+    widget.backdrop?.dispose();
     tilt.dispose();
     super.dispose();
   }
@@ -176,16 +181,22 @@ class _DetailScreenState extends State<DetailScreen> with TickerProviderStateMix
               Positioned.fill(
                 child: GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  child: BackdropFilter(
-                    filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(colors: [
-                          rarityGlowColor(idol.rarity, 0).withValues(alpha: 0.22),
-                          Colors.black.withValues(alpha: 0.82),
-                        ]),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (widget.backdrop != null)
+                        RawImage(image: widget.backdrop, fit: BoxFit.cover, filterQuality: FilterQuality.medium)
+                      else
+                        const ColoredBox(color: Colors.black),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: RadialGradient(colors: [
+                            rarityGlowColor(idol.rarity, 0).withValues(alpha: 0.22),
+                            Colors.black.withValues(alpha: 0.82),
+                          ]),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
@@ -459,13 +470,8 @@ class _BackGlowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final k = size.width / kCardW;
-    final path = stampPath().transform((Matrix4.identity()..scaleByDouble(k, k, 1, 1)).storage);
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = color.withValues(alpha: 0.8 * strength)
-        ..maskFilter = MaskFilter.blur(BlurStyle.outer, 20 * strength + 4),
-    );
+    canvas.scale(k);
+    GlowImages.paint(canvas, GlowImages.glow, color.withValues(alpha: (0.9 * strength + 0.1).clamp(0.0, 1.0)));
   }
 
   @override

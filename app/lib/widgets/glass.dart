@@ -1,8 +1,10 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
-/// Panel de vidrio esmerilado para los controles sobre el tablero.
+/// Panel oscuro translúcido para los controles sobre el tablero.
+///
+/// Antes era vidrio esmerilado (BackdropFilter), pero desenfocar el fondo
+/// animado en cada frame es caro en Android; un tono oscuro con degradé se ve
+/// casi igual.
 class Glass extends StatelessWidget {
   const Glass({super.key, required this.child, this.padding = const EdgeInsets.all(12), this.radius = 20});
 
@@ -12,20 +14,18 @@ class Glass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.42),
-            borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-          ),
-          child: child,
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.black.withValues(alpha: 0.62), Colors.black.withValues(alpha: 0.74)],
         ),
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
       ),
+      child: child,
     );
   }
 }

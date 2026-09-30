@@ -16,6 +16,9 @@ class AppSettings extends ChangeNotifier {
   bool tiltHolo = true;
   bool constellations = true;
 
+  /// Congela las animaciones de las cartas en el tablero (para teléfonos lentos).
+  bool smooth = false;
+
   late SharedPreferences _prefs;
 
   bool get isConfigured => token.isNotEmpty && owner.isNotEmpty && repo.isNotEmpty && branch.isNotEmpty;
@@ -31,6 +34,7 @@ class AppSettings extends ChangeNotifier {
     idolOfTheDay = _prefs.getBool('idolOfTheDay') ?? idolOfTheDay;
     tiltHolo = _prefs.getBool('tiltHolo') ?? tiltHolo;
     constellations = _prefs.getBool('constellations') ?? constellations;
+    smooth = _prefs.getBool('smooth') ?? smooth;
     try {
       token = await _secure.read(key: 'github_token') ?? '';
     } catch (_) {
@@ -62,6 +66,8 @@ class AppSettings extends ChangeNotifier {
         tiltHolo = value;
       case 'constellations':
         constellations = value;
+      case 'smooth':
+        smooth = value;
     }
     await _prefs.setBool(key, value);
     notifyListeners();

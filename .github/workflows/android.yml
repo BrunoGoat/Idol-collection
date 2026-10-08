@@ -83,6 +83,9 @@ jobs:
   # https://<usuario>.github.io/Idol-collection/
   web:
     runs-on: ubuntu-latest
+    # Mientras GitHub Pages no esté activado (repo privado sin Pro), la
+    # publicación falla: que eso no marque en rojo la compilación del APK.
+    continue-on-error: true
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}

@@ -76,7 +76,7 @@ class _RevealOverlayState extends State<RevealOverlay> with SingleTickerProvider
     final color = idol.rarity.color;
     final screen = MediaQuery.sizeOf(context);
     final cardW = math.min(screen.width * 0.78, (screen.height - 220) * 0.75);
-    final image = FileImage(collection.imageFile(idol));
+    final image = collection.imageOf(idol, width: 1000);
 
     return GestureDetector(
       onTap: _onTap,

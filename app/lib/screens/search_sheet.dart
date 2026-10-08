@@ -99,7 +99,6 @@ class _SearchSheetState extends State<_SearchSheet> {
                       itemCount: results.length,
                       itemBuilder: (context, i) {
                         final idol = results[i];
-                        final thumb = collection.thumbs[idol.id];
                         return ListTile(
                           onTap: () => Navigator.pop(context, idol.id),
                           leading: ClipRRect(
@@ -107,9 +106,12 @@ class _SearchSheetState extends State<_SearchSheet> {
                             child: SizedBox(
                               width: 42,
                               height: 56,
-                              child: thumb == null
-                                  ? ColoredBox(color: idol.rarity.color)
-                                  : Image.file(thumb, fit: BoxFit.cover, alignment: Alignment(idol.focusX, idol.focusY)),
+                              child: Image(
+                                image: collection.imageOf(idol, thumb: true, width: 120),
+                                fit: BoxFit.cover,
+                                alignment: Alignment(idol.focusX, idol.focusY),
+                                errorBuilder: (_, _, _) => ColoredBox(color: idol.rarity.color),
+                              ),
                             ),
                           ),
                           title: Text(idol.name, style: idol.fontOption.style(18, color: Colors.white)),

@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -129,10 +127,8 @@ class _DetailScreenState extends State<DetailScreen> with TickerProviderStateMix
       final boundary = _captureKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
       final image = await boundary.toImage(pixelRatio: 3);
       final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/${idol.id}.png');
-      await file.writeAsBytes(bytes!.buffer.asUint8List());
-      await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: idol.name));
+      final file = XFile.fromData(bytes!.buffer.asUint8List(), mimeType: 'image/png', name: '${idol.id}.png');
+      await SharePlus.instance.share(ShareParams(files: [file], fileNameOverrides: ['${idol.id}.png'], text: idol.name));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo compartir: $e')));
     } finally {
@@ -239,7 +235,7 @@ class _DetailScreenState extends State<DetailScreen> with TickerProviderStateMix
                                             child: StampCard(
                                               idol: idol,
                                               number: number,
-                                              image: ResizeImage(FileImage(collection.imageFile(idol)), width: 1400, allowUpscaling: false),
+                                              image: collection.imageOf(idol, width: 1400),
                                               time: widget.time,
                                               tilt: tilt,
                                               glowBoost: 1.3,

@@ -51,6 +51,20 @@ collection/   ← mis ídolos: imágenes + card.md + layout.json  (ver collectio
      azar). No hace falta recordarla, pero **no la cambies**: otra frase es
      otra clave, y habría que desinstalar la app para volver a instalarla.
 
+## Versión web (iPhone / Safari)
+
+La misma app compilada para web, publicada en GitHub Pages en cada cambio de
+código: **https://brunogoat.github.io/Idol-collection/**
+
+- En el iPhone: abrila en Safari → Compartir → **Agregar a pantalla de inicio**.
+  Queda con ícono y a pantalla completa.
+- La colección se guarda en el navegador (IndexedDB) y se sincroniza con el repo
+  igual que en Android. El token queda guardado en ese navegador.
+- Diferencias con Android: no hay actualizador (la web siempre está al día) y
+  el holograma por inclinación puede no responder en iOS (deslizar el dedo sí).
+- GitHub Pages en repos privados requiere GitHub Pro: con el repo público,
+  activalo en Settings → Pages → Source: **GitHub Actions**.
+
 ## Conectar la app al repo
 
 En la app: **Ajustes → Repositorio de GitHub**.

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -149,7 +150,8 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
     setState(() {});
     final syncDone = collection.status != SyncStatus.syncing && collection.status != SyncStatus.idle;
     if (syncDone) {
-      if (collection.status == SyncStatus.ok && !_updateChecked) {
+      // En la web siempre se abre la última versión: no hay nada que actualizar.
+      if (!kIsWeb && collection.status == SyncStatus.ok && !_updateChecked) {
         _updateChecked = true;
         _checkForUpdate();
       }
@@ -559,9 +561,9 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
   // -------------------------------------------------------------------------
 
   ImageProvider? _imageFor(Idol idol, _Lod lod) {
-    final thumb = collection.thumbs[idol.id];
-    if (lod.thumb && thumb != null) return FileImage(thumb);
-    return ResizeImage(FileImage(collection.imageFile(idol)), width: lod.hires ? 1000 : 520, allowUpscaling: false);
+    if (lod.thumb && collection.thumbs.containsKey(idol.id)) return collection.imageOf(idol, thumb: true);
+    // Sin miniatura (en la web no se generan): la original, decodificada chica.
+    return collection.imageOf(idol, width: lod.thumb ? 360 : (lod.hires ? 1000 : 520));
   }
 
   Widget _card(String id, Placement p, CameraView cam) {
@@ -690,7 +692,7 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
                 ),
               ),
             ),
-            if (collection.idols.isEmpty) _EmptyState(onAdd: _addCard, onSettings: _openSettings, configured: settings.isConfigured),
+            if (collection.idols.isEmpty && settings.seenTutorial) _EmptyState(onAdd: _addCard, onSettings: _openSettings, configured: settings.isConfigured),
             Positioned(
               top: padding.top + 10,
               left: 12,
@@ -706,8 +708,6 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
                 onFit: () => _flyTo(_fitAll(), duration: const Duration(milliseconds: 900)),
               ),
             ),
-            if (!settings.seenTutorial)
-              Positioned.fill(child: _Tutorial(accent: theme.accent, onDone: settings.setSeenTutorial)),
             if (_banner != null)
               Positioned(
                 top: padding.top + 80,
@@ -757,6 +757,9 @@ class _BoardScreenState extends State<BoardScreen> with TickerProviderStateMixin
                   },
                 ),
               ),
+            // La guía va arriba de todo (incluido el botón +).
+            if (!settings.seenTutorial)
+              Positioned.fill(child: _Tutorial(accent: theme.accent, onDone: settings.setSeenTutorial)),
           ],
         );
       }),
@@ -1085,7 +1088,7 @@ class _Tutorial extends StatelessWidget {
           ),
         );
     return ColoredBox(
-      color: Colors.black54,
+      color: Colors.black.withValues(alpha: 0.8),
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

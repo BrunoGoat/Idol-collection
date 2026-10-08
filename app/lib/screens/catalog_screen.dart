@@ -48,8 +48,7 @@ class _CatalogScreenState extends State<CatalogScreen> with SingleTickerProvider
   ImageProvider? _imageOf(BuildContext context, Idol idol) {
     final collection = AppScope.of(context).collection;
     if (!collection.idols.containsKey(idol.id)) return null;
-    final thumb = collection.thumbs[idol.id];
-    return thumb != null ? FileImage(thumb) : FileImage(collection.imageFile(idol));
+    return collection.imageOf(idol, thumb: true, width: 400);
   }
 
   @override

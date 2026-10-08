@@ -1,20 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../models/idol.dart';
 import '../models/layout.dart';
 import '../services/image_tools.dart';
+import 'backend/blob_backend.dart';
 import 'github_client.dart';
 import 'local_store.dart';
 import 'settings.dart';
+import 'store_image.dart';
 
 const kLayoutPath = 'collection/layout.json';
 
@@ -23,10 +22,10 @@ enum SyncStatus { idle, syncing, ok, offline, error, notConfigured }
 /// El estado completo de la colección. La fuente de verdad es el repo; esto es
 /// una copia local que se actualiza sola al abrir la app y sube lo que cambies.
 class Collection extends ChangeNotifier {
-  Collection._(this.settings, this.store, this._baseDir, this._httpFactory);
+  Collection._(this.settings, this.store, this._basePath, this._httpFactory);
 
   final AppSettings settings;
-  final Directory? _baseDir;
+  final String? _basePath;
   final http.Client Function()? _httpFactory;
   LocalStore store;
 
@@ -36,8 +35,8 @@ class Collection extends ChangeNotifier {
   /// Número de colección que se muestra en cada carta (#001…).
   final Map<String, int> numbers = {};
 
-  /// Miniaturas generadas en el teléfono.
-  final Map<String, File> thumbs = {};
+  /// Miniaturas generadas en el teléfono (id → clave en el almacenamiento).
+  final Map<String, String> thumbs = {};
 
   /// Ídolos que llegaron del repo desde la última vez: se revelan con animación.
   final List<String> arrivals = [];
@@ -53,24 +52,23 @@ class Collection extends ChangeNotifier {
   final Set<String> _touchedDuringPush = {};
   bool _thumbsRunning = false;
 
-  /// [baseDir] y [httpFactory] existen para los tests.
-  static Future<Collection> open(AppSettings settings, {Directory? baseDir, http.Client Function()? httpFactory}) async {
-    final c = Collection._(settings, await _storeFor(settings, baseDir), baseDir, httpFactory);
+  /// [basePath] y [httpFactory] existen para los tests.
+  static Future<Collection> open(AppSettings settings, {String? basePath, http.Client Function()? httpFactory}) async {
+    final c = Collection._(settings, await _storeFor(settings, basePath), basePath, httpFactory);
     await c._reload();
     return c;
   }
 
-  static Future<LocalStore> _storeFor(AppSettings s, Directory? baseDir) async {
-    final base = baseDir ?? await getApplicationSupportDirectory();
+  static Future<LocalStore> _storeFor(AppSettings s, String? basePath) async {
     final key = s.repoKey.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
-    final store = LocalStore(Directory(p.join(base.path, 'collections', key)));
+    final store = LocalStore(createBackend(key, basePath: basePath));
     await store.open();
     return store;
   }
 
   /// Llamar después de cambiar el repo en ajustes.
   Future<void> repoChanged() async {
-    store = await _storeFor(settings, _baseDir);
+    store = await _storeFor(settings, _basePath);
     idols.clear();
     thumbs.clear();
     await _reload();
@@ -87,7 +85,18 @@ class Collection extends ChangeNotifier {
 
   int get pendingCount => store.pending.count;
 
-  File imageFile(Idol idol) => store.file(idol.imagePath);
+  /// Imagen de una carta. Con [thumb], la miniatura (si ya está generada).
+  /// [width] decodifica más chico para ahorrar memoria.
+  ImageProvider imageOf(Idol idol, {bool thumb = false, int? width}) {
+    final thumbKey = thumbs[idol.id];
+    final ImageProvider base = thumb && thumbKey != null
+        ? StoreImage(store.backend, thumbKey, thumbKey)
+        : StoreImage(store.backend, store.keyOf(idol.imagePath), store.versionOf(idol.imagePath));
+    return width == null ? base : ResizeImage(base, width: width, allowUpscaling: false);
+  }
+
+  /// Bytes de la imagen de una carta (para compartirla, por ejemplo).
+  Future<Uint8List?> imageBytes(Idol idol) => store.readBytes(idol.imagePath);
 
   // -------------------------------------------------------------------------
   // Sincronización
@@ -127,9 +136,8 @@ class Collection extends ChangeNotifier {
       status = SyncStatus.ok;
       lastError = null;
       lastSync = DateTime.now();
-    } on SocketException {
-      status = SyncStatus.offline;
     } on http.ClientException {
+      // Incluye los errores de red (en Android, SocketException).
       status = SyncStatus.offline;
     } on GitHubException catch (e) {
       status = SyncStatus.error;
@@ -172,8 +180,7 @@ class Collection extends ChangeNotifier {
         }
         if (theme) remote.theme = layout.theme;
         final bytes = Uint8List.fromList(utf8.encode(remote.toJsonString()));
-        await store.file(kLayoutPath).parent.create(recursive: true);
-        await store.file(kLayoutPath).writeAsBytes(bytes, flush: true);
+        await store.writeRaw(kLayoutPath, bytes);
         files[kLayoutPath] = bytes;
       }
       if (files.isNotEmpty) {
@@ -225,7 +232,6 @@ class Collection extends ChangeNotifier {
       await Future.wait(toDownload.skip(i).take(4).map((f) async {
         final bytes = await client.downloadBlob(f.sha);
         await store.writeSynced(f.path, bytes, f.sha);
-        FileImage(store.file(f.path)).evict();
       }));
     }
     for (final path in store.indexedPaths.toList()) {
@@ -306,7 +312,9 @@ class Collection extends ChangeNotifier {
   }
 
   Future<void> _ensureThumbs() async {
-    if (_thumbsRunning) return;
+    // En la web no hay hilos para generarlas sin trabar la página: ahí el
+    // navegador decodifica la imagen original más chica (ver imageOf).
+    if (kIsWeb || _thumbsRunning) return;
     _thumbsRunning = true;
     try {
       var changed = 0;
@@ -314,18 +322,18 @@ class Collection extends ChangeNotifier {
         final bytes = await store.readBytes(idol.imagePath);
         if (bytes == null) continue;
         final sha = store.shaOf(idol.imagePath) ?? gitBlobSha(bytes);
-        final file = store.thumbFile(idol.id, sha);
-        if (!await file.exists()) {
+        final key = store.thumbKey(idol.id, sha);
+        if (!await store.hasThumb(key)) {
           try {
-            await file.writeAsBytes(await makeThumbnail(bytes), flush: true);
-            await store.pruneThumbs(idol.id, file);
+            await store.writeThumb(key, await makeThumbnail(bytes));
+            await store.pruneThumbs(idol.id, key);
           } catch (e) {
             debugPrint('Miniatura fallida para ${idol.id}: $e');
             continue;
           }
         }
-        if (thumbs[idol.id]?.path != file.path) {
-          thumbs[idol.id] = file;
+        if (thumbs[idol.id] != key) {
+          thumbs[idol.id] = key;
           if (++changed % 6 == 0) notifyListeners();
         }
       }
@@ -359,9 +367,7 @@ class Collection extends ChangeNotifier {
   }
 
   Future<void> _saveLayoutLocal() async {
-    final f = store.file(kLayoutPath);
-    await f.parent.create(recursive: true);
-    await f.writeAsString(layout.toJsonString(), flush: true);
+    await store.writeRaw(kLayoutPath, Uint8List.fromList(utf8.encode(layout.toJsonString())));
   }
 
   void _schedulePush([Duration delay = const Duration(seconds: 2)]) {
@@ -404,7 +410,6 @@ class Collection extends ChangeNotifier {
       if (idol.image != 'image.jpg') await _deleteLocal(idol.imagePath);
       idol.image = 'image.jpg';
       await _writeLocal(idol.imagePath, bytes);
-      FileImage(imageFile(idol)).evict();
     }
     await _writeLocal(idol.mdPath, Uint8List.fromList(utf8.encode(idol.toMarkdown())));
     store.pending.messages.add('editar a ${idol.name}');

@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
-import 'package:path/path.dart' as p;
+
+import 'backend/blob_backend.dart';
 
 /// SHA que git le asigna a un archivo: `sha1("blob <tamaño>\0<contenido>")`.
 String gitBlobSha(Uint8List bytes) {
@@ -52,87 +52,88 @@ class PendingChanges {
 }
 
 /// Copia local de la carpeta `collection/` del repo, para abrir al instante y
-/// funcionar sin internet.
+/// funcionar sin internet. Funciona igual en Android (archivos) y en la web
+/// (IndexedDB) gracias a [BlobBackend].
 class LocalStore {
-  LocalStore(this.root);
+  LocalStore(this.backend);
 
-  final Directory root;
+  final BlobBackend backend;
   late Map<String, String> _index; // ruta del repo → sha
   late PendingChanges pending;
 
-  Directory get mirror => Directory(p.join(root.path, 'mirror'));
-  Directory get thumbs => Directory(p.join(root.path, 'thumbs'));
-  File get _indexFile => File(p.join(root.path, 'index.json'));
-  File get _pendingFile => File(p.join(root.path, 'pending.json'));
+  /// Versión de los archivos cambiados en esta sesión que todavía no tienen sha
+  /// (para que las imágenes nuevas no usen la copia vieja del caché).
+  final Map<String, String> _localStamp = {};
+
+  static const _mirror = 'mirror/';
+  static const _thumbs = 'thumbs/';
 
   Future<void> open() async {
-    await mirror.create(recursive: true);
-    await thumbs.create(recursive: true);
-    _index = await _readJson(_indexFile).then((j) => j.cast<String, String>());
-    pending = PendingChanges.fromJson(await _readJson(_pendingFile));
+    await backend.open();
+    _index = (await _readJson('index.json')).cast<String, String>();
+    pending = PendingChanges.fromJson(await _readJson('pending.json'));
   }
 
-  Future<Map<String, dynamic>> _readJson(File f) async {
-    if (!await f.exists()) return {};
+  Future<Map<String, dynamic>> _readJson(String key) async {
+    final bytes = await backend.read(key);
+    if (bytes == null) return {};
     try {
-      return jsonDecode(await f.readAsString()) as Map<String, dynamic>;
+      return jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
     } catch (_) {
       return {};
     }
   }
 
-  Future<void> saveIndex() => _indexFile.writeAsString(jsonEncode(_index));
-  Future<void> savePending() => _pendingFile.writeAsString(jsonEncode(pending.toJson()));
+  Future<void> _writeJson(String key, Object value) =>
+      backend.write(key, Uint8List.fromList(utf8.encode(jsonEncode(value))));
 
-  File file(String repoPath) => File(p.join(mirror.path, repoPath));
+  Future<void> saveIndex() => _writeJson('index.json', _index);
+  Future<void> savePending() => _writeJson('pending.json', pending.toJson());
+
+  /// Clave del almacenamiento para una ruta del repo.
+  String keyOf(String repoPath) => '$_mirror$repoPath';
 
   String? shaOf(String repoPath) => _index[repoPath];
   Iterable<String> get indexedPaths => _index.keys;
 
-  Future<bool> exists(String repoPath) => file(repoPath).exists();
+  /// Identifica el contenido actual de un archivo (para el caché de imágenes).
+  String versionOf(String repoPath) => _localStamp[repoPath] ?? _index[repoPath] ?? '0';
+
+  Future<bool> exists(String repoPath) => backend.exists(keyOf(repoPath));
 
   Future<String?> readText(String repoPath) async {
-    try {
-      return await file(repoPath).readAsString();
-    } on FileSystemException {
-      return null;
-    }
+    final bytes = await readBytes(repoPath);
+    return bytes == null ? null : utf8.decode(bytes);
   }
 
-  Future<Uint8List?> readBytes(String repoPath) async {
-    try {
-      return await file(repoPath).readAsBytes();
-    } on FileSystemException {
-      return null; // No existe, o se borró mientras tanto (una sincronización).
-    }
-  }
+  Future<Uint8List?> readBytes(String repoPath) => backend.read(keyOf(repoPath));
+
+  /// Escribe sin marcarlo como cambio pendiente (lo usa layout.json, que se
+  /// sube fusionado por carta).
+  Future<void> writeRaw(String repoPath, Uint8List bytes) => backend.write(keyOf(repoPath), bytes);
 
   /// Escribe un archivo que vino del repo (queda sincronizado).
   Future<void> writeSynced(String repoPath, Uint8List bytes, String sha) async {
-    final f = file(repoPath);
-    await f.parent.create(recursive: true);
-    await f.writeAsBytes(bytes, flush: true);
+    await backend.write(keyOf(repoPath), bytes);
     _index[repoPath] = sha;
+    _localStamp.remove(repoPath);
   }
 
   /// Escribe un cambio local, pendiente de subir.
   Future<void> writeLocal(String repoPath, Uint8List bytes) async {
-    final f = file(repoPath);
-    await f.parent.create(recursive: true);
-    await f.writeAsBytes(bytes, flush: true);
+    await backend.write(keyOf(repoPath), bytes);
     pending.files.add(repoPath);
+    _localStamp[repoPath] = 'local-${DateTime.now().microsecondsSinceEpoch}';
   }
 
   Future<void> deleteLocal(String repoPath) async {
-    final f = file(repoPath);
-    if (await f.exists()) await f.delete();
+    await backend.delete(keyOf(repoPath));
     pending.files.add(repoPath);
   }
 
   /// Borra un archivo que desapareció del repo.
   Future<void> deleteSynced(String repoPath) async {
-    final f = file(repoPath);
-    if (await f.exists()) await f.delete();
+    await backend.delete(keyOf(repoPath));
     _index.remove(repoPath);
   }
 
@@ -146,40 +147,34 @@ class LocalStore {
     }
   }
 
-  /// Carpetas de ídolos presentes en el espejo.
+  /// Carpetas de ídolos presentes en el espejo (las que tienen card.md).
   Future<List<String>> idolIds() async {
-    final dir = Directory(p.join(mirror.path, 'collection', 'idols'));
-    if (!await dir.exists()) return [];
-    final ids = <String>[];
-    await for (final e in dir.list()) {
-      if (e is Directory && await File(p.join(e.path, 'card.md')).exists()) {
-        ids.add(p.basename(e.path));
-      }
-    }
-    return ids;
+    const prefix = '${_mirror}collection/idols/';
+    return [
+      for (final k in await backend.keys(prefix))
+        if (k.endsWith('/card.md') && k.substring(prefix.length).split('/').length == 2)
+          k.substring(prefix.length).split('/').first,
+    ];
   }
 
-  Future<void> removeEmptyDirs() async {
-    final dir = Directory(p.join(mirror.path, 'collection', 'idols'));
-    if (!await dir.exists()) return;
-    await for (final e in dir.list()) {
-      if (e is Directory && await e.list().isEmpty) await e.delete();
-    }
-  }
+  Future<void> removeEmptyDirs() => backend.tidy();
 
-  File thumbFile(String id, String imageSha) => File(p.join(thumbs.path, '$id-${imageSha.substring(0, 10)}.jpg'));
+  String thumbKey(String id, String imageSha) => '$_thumbs$id-${imageSha.substring(0, 10)}.jpg';
+
+  Future<bool> hasThumb(String key) => backend.exists(key);
+  Future<void> writeThumb(String key, Uint8List bytes) => backend.write(key, bytes);
 
   /// Borra miniaturas viejas de una carta.
-  Future<void> pruneThumbs(String id, File keep) async {
-    await for (final e in thumbs.list()) {
-      final name = p.basename(e.path);
-      if (name.startsWith('$id-') && e.path != keep.path) await e.delete();
+  Future<void> pruneThumbs(String id, String keep) async {
+    for (final k in await backend.keys('$_thumbs$id-')) {
+      if (k != keep) await backend.delete(k);
     }
   }
 
   /// Borra todo (al cambiar de repo).
   Future<void> wipe() async {
-    if (await root.exists()) await root.delete(recursive: true);
-    await open();
+    await backend.clear();
+    _index = {};
+    pending = PendingChanges();
   }
 }

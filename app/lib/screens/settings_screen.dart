@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../app_scope.dart';
@@ -190,8 +191,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               if (_testResult != null) Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(_testResult!)),
-              const _Header('App'),
-              const _UpdateTile(),
+              if (!kIsWeb) ...[
+                const _Header('App'),
+                const _UpdateTile(),
+              ],
               const _Header('Estado'),
               ListTile(
                 leading: const Icon(Icons.sync),

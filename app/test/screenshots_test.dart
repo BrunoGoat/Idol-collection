@@ -82,7 +82,7 @@ void main() {
         ..idolOfTheDay = false
         ..tiltHolo = false;
       if (Platform.environment['TUTORIAL'] != '1') await settings.setSeenTutorial();
-      collection = await Collection.open(settings, baseDir: tmp, httpFactory: gh.client);
+      collection = await Collection.open(settings, basePath: tmp.path, httpFactory: gh.client);
       await collection.sync();
       if (theme != collection.layout.theme) collection.layout.theme = theme;
       settings.token = ''; // que el tablero no intente sincronizar dentro del test

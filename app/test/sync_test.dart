@@ -17,7 +17,7 @@ void main() {
   late FakeGitHub gh;
   late AppSettings settings;
 
-  Future<Collection> open() => Collection.open(settings, baseDir: tmp, httpFactory: gh.client);
+  Future<Collection> open() => Collection.open(settings, basePath: tmp.path, httpFactory: gh.client);
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});

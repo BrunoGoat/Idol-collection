@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:image_picker/image_picker.dart';
@@ -52,13 +51,16 @@ class _CardEditorScreenState extends State<CardEditorScreen> with SingleTickerPr
 
   ImageProvider? get _preview {
     if (_newImage != null) return MemoryImage(_newImage!);
-    if (widget.existing != null) return FileImage(AppScope.of(context).collection.imageFile(widget.existing!));
+    if (widget.existing != null) return AppScope.of(context).collection.imageOf(widget.existing!, width: 900);
     return null;
   }
 
   Future<void> _pick(ImageSource source) async {
     try {
-      final file = await ImagePicker().pickImage(source: source, maxWidth: 2400, maxHeight: 2400, imageQuality: 95);
+      // En la web el navegador ya la achica a tamaño de repo (no hay hilos para
+      // hacerlo después sin trabar la página).
+      final side = kIsWeb ? 1600.0 : 2400.0;
+      final file = await ImagePicker().pickImage(source: source, maxWidth: side, maxHeight: side, imageQuality: kIsWeb ? 88 : 95);
       if (file == null) return;
       final bytes = await file.readAsBytes();
       setState(() {
